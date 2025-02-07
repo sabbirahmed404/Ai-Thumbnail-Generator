@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,9 +155,11 @@ export default function Home() {
                           <CardTitle className="text-center text-sm">Original Image</CardTitle>
                         </CardHeader>
                         <CardContent className="flex aspect-video items-center justify-center p-6">
-                          <img 
+                          <Image 
                             src={originalPreview} 
                             alt="Original" 
+                            width={1280}
+                            height={720}
                             className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                           />
                         </CardContent>
@@ -170,9 +173,11 @@ export default function Home() {
                           <CardTitle className="text-center text-sm">Generated Thumbnail</CardTitle>
                         </CardHeader>
                         <CardContent className="flex aspect-video items-center justify-center p-6">
-                          <img 
-                            src={thumbnailUrl} 
+                          <Image 
+                            src={thumbnailUrl || ''} 
                             alt="Thumbnail" 
+                            width={1280}
+                            height={720}
                             className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                           />
                         </CardContent>

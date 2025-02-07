@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Jimp = require('jimp');
 import { ImageProcessingInstruction, ProcessedImage } from '@/types/image-processing';
 import { v4 as uuidv4 } from 'uuid';
