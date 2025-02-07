@@ -3,6 +3,7 @@
   "rules": {
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-require-imports": "off",
+    "@typescript-eslint/no-var-requires": "off",
     "@typescript-eslint/no-unused-vars": ["error", {
       "argsIgnorePattern": "^_",
       "varsIgnorePattern": "^_",
@@ -14,9 +15,12 @@
   },
   "overrides": [
     {
-      "files": ["**/test-*.ts", "**/test-*.tsx"],
+      "files": ["**/test-*.ts", "**/test-*.tsx", "**/lib/**/*.ts"],
       "rules": {
-        "@typescript-eslint/no-var-requires": "off"
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-require-imports": "off",
+        "prefer-const": "off"
       }
     }
   ]

@@ -2,7 +2,9 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import { ImageProcessingInstruction } from '@/types/image-processing';
-// Import Jimp using require for better compatibility
+
+// Import Jimp using require for better compatibility with Next.js
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Jimp = require('jimp');
 
 // Sample JSON output from Gemini (for testing)

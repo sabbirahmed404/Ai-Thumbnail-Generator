@@ -1,7 +1,5 @@
-import { createCanvas, loadImage, registerFont } from 'canvas';
+import { createCanvas, loadImage } from 'canvas';
 import sharp from 'sharp';
-import tinycolor from 'tinycolor2';
-import chroma from 'chroma-js';
 import fs from 'fs';
 import path from 'path';
 import { ImageProcessingInstruction } from '@/types/image-processing';
