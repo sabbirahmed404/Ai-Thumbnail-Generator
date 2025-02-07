@@ -1,8 +1,10 @@
 import sharp from 'sharp';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const Jimp = require('jimp');
 import { ImageProcessingInstruction, ProcessedImage } from '@/types/image-processing';
 import { uploadBuffer } from '../cloudinary';
+
+// Import Jimp using require since it doesn't support ES modules well
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Jimp = require('jimp');
 
 export class ImageProcessor {
   async process(
@@ -11,10 +13,10 @@ export class ImageProcessor {
   ): Promise<ProcessedImage> {
     try {
       // Start with Sharp for basic processing
-      let processor = sharp(imageBuffer);
+      const processor = sharp(imageBuffer);
 
       // Apply base settings
-      processor = processor.resize(
+      processor.resize(
         instructions.base.size.width,
         instructions.base.size.height,
         {
@@ -28,20 +30,20 @@ export class ImageProcessor {
         for (const filter of instructions.enhancements.filters) {
           switch (filter.type) {
             case 'contrast':
-              processor = processor.modulate({ brightness: filter.value });
+              processor.modulate({ brightness: filter.value });
               break;
             case 'brightness':
-              processor = processor.modulate({ brightness: filter.value });
+              processor.modulate({ brightness: filter.value });
               break;
             case 'saturation':
-              processor = processor.modulate({ saturation: filter.value });
+              processor.modulate({ saturation: filter.value });
               break;
           }
         }
       }
 
       // Process with Sharp first
-      let processedBuffer = await processor.toBuffer();
+      const processedBuffer = await processor.toBuffer();
 
       // Use Jimp for text overlays if needed
       if (instructions.enhancements.overlays?.length) {
@@ -61,24 +63,40 @@ export class ImageProcessor {
               font,
               overlay.position.x,
               overlay.position.y,
-              {
-                text: overlay.content,
-                alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                alignmentY: Jimp.VERTICAL_ALIGN_TOP
-              }
+              overlay.content
             );
           }
         }
 
         // Convert back to buffer
-        processedBuffer = await jimpImage.getBufferAsync(Jimp.MIME_PNG);
+        const finalBuffer = await new Promise<Buffer>((resolve, reject) => {
+          jimpImage.getBuffer(Jimp.MIME_PNG, (err: Error | null, buffer: Buffer) => {
+            if (err) reject(err);
+            else resolve(buffer);
+          });
+        });
+        
+        // Upload to Cloudinary with optimizations
+        const url = await uploadBuffer(finalBuffer, 'thumbnails');
+
+        // Get metadata for response
+        const metadata = await sharp(finalBuffer).metadata();
+
+        return {
+          url,
+          metadata: {
+            width: metadata.width || 0,
+            height: metadata.height || 0,
+            format: metadata.format || '',
+            size: metadata.size || 0
+          },
+          instructions
+        };
       }
 
-      // Get metadata before upload
+      // If no text overlays, upload the Sharp-processed buffer directly
+      const url = await uploadBuffer(processedBuffer, 'thumbnails');
       const metadata = await sharp(processedBuffer).metadata();
-
-      // Upload to Cloudinary
-      const url = await uploadBuffer(processedBuffer);
 
       return {
         url,
@@ -91,7 +109,8 @@ export class ImageProcessor {
         instructions
       };
     } catch (error) {
-      throw new Error(`Image processing failed: ${error}`);
+      console.error('Image processing failed:', error);
+      throw new Error(`Image processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 } 
