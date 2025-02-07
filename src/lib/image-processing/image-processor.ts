@@ -2,16 +2,9 @@ import sharp from 'sharp';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Jimp = require('jimp');
 import { ImageProcessingInstruction, ProcessedImage } from '@/types/image-processing';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
+import { uploadBuffer } from '../cloudinary';
 
 export class ImageProcessor {
-  private readonly outputDir: string;
-
-  constructor(outputDir: string = 'public/processed') {
-    this.outputDir = outputDir;
-  }
-
   async process(
     imageBuffer: Buffer,
     instructions: ImageProcessingInstruction
@@ -35,7 +28,7 @@ export class ImageProcessor {
         for (const filter of instructions.enhancements.filters) {
           switch (filter.type) {
             case 'contrast':
-              processor = processor.modulate({ brightness: filter.value }); // Sharp uses brightness for contrast
+              processor = processor.modulate({ brightness: filter.value });
               break;
             case 'brightness':
               processor = processor.modulate({ brightness: filter.value });
@@ -81,20 +74,14 @@ export class ImageProcessor {
         processedBuffer = await jimpImage.getBufferAsync(Jimp.MIME_PNG);
       }
 
-      // Generate unique filename
-      const filename = `${uuidv4()}.${instructions.base.format}`;
-      const outputPath = path.join(this.outputDir, filename);
-      
-      // Save the processed image
-      await sharp(processedBuffer)
-        .toFormat(instructions.base.format)
-        .toFile(outputPath);
-
-      // Get final image metadata
+      // Get metadata before upload
       const metadata = await sharp(processedBuffer).metadata();
 
+      // Upload to Cloudinary
+      const url = await uploadBuffer(processedBuffer);
+
       return {
-        url: `/processed/${filename}`,
+        url,
         metadata: {
           width: metadata.width || 0,
           height: metadata.height || 0,

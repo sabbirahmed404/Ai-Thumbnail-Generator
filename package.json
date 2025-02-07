@@ -13,6 +13,7 @@
     "test:jimp": "tsx src/lib/test-image-processing-jimp.ts",
     "test:advanced": "tsx src/lib/test-advanced-thumbnail.ts",
     "test:bridge": "tsx src/lib/test-gemini-thumbnail.ts",
+    "test:cloudinary": "tsx src/lib/test-cloudinary.ts",
     "create-thumbnail": "tsx src/lib/create-thumbnail.ts"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "canvas": "^3.1.0",
     "chroma-js": "^3.1.2",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.5.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",
     "embla-carousel": "^8.5.2",
