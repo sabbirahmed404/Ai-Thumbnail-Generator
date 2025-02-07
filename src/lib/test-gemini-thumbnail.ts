@@ -3,9 +3,62 @@ import { createCanvas, loadImage } from 'canvas';
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
+import { ImageProcessingInstruction } from '@/types/image-processing';
+
+interface ThumbnailConfig {
+  base: {
+    size: {
+      width: number;
+      height: number;
+    };
+    format: string;
+  };
+  background: {
+    gradient: {
+      colors: string[];
+      angle: number;
+    };
+    opacity: number;
+  };
+  image: {
+    filters: Array<{
+      type: string;
+      value: number;
+    }>;
+  };
+  overlays: Array<{
+    type: string;
+    content: string;
+    position: {
+      x: number;
+      y: number;
+    };
+    style: {
+      font: string;
+      size: number;
+      color: string;
+      outline?: string;
+      alignment?: string;
+      shadow?: {
+        color: string;
+        blur: number;
+        offsetX: number;
+        offsetY: number;
+      };
+    };
+  }>;
+  effects: {
+    vignette: {
+      strength: number;
+    };
+    noise: {
+      opacity: number;
+    };
+  };
+}
 
 // Function to convert Gemini's output to our thumbnail configuration
-function convertGeminiToThumbnailConfig(geminiOutput: any) {
+function convertGeminiToThumbnailConfig(geminiOutput: ImageProcessingInstruction): ThumbnailConfig {
   return {
     base: {
       size: {
@@ -24,7 +77,7 @@ function convertGeminiToThumbnailConfig(geminiOutput: any) {
     image: {
       filters: geminiOutput.enhancements.filters || []
     },
-    overlays: geminiOutput.enhancements.overlays?.map((overlay: any) => ({
+    overlays: geminiOutput.enhancements.overlays?.map((overlay) => ({
       ...overlay,
       style: {
         ...overlay.style,
@@ -48,7 +101,7 @@ function convertGeminiToThumbnailConfig(geminiOutput: any) {
   };
 }
 
-async function createThumbnailFromInstructions(config: any, inputPath: string, outputPath: string) {
+async function createThumbnailFromInstructions(config: ThumbnailConfig, imageBuffer: Buffer, outputPath: string): Promise<void> {
   // Create canvas with thumbnail dimensions
   const canvas = createCanvas(config.base.size.width, config.base.size.height);
   const ctx = canvas.getContext('2d');
@@ -56,14 +109,14 @@ async function createThumbnailFromInstructions(config: any, inputPath: string, o
   // Draw gradient background
   const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
   const colors = config.background.gradient.colors;
-  colors.forEach((color: string, index: number) => {
+  colors.forEach((color, index) => {
     gradient.addColorStop(index / (colors.length - 1), color);
   });
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Load and draw the base image
-  const image = await loadImage(inputPath);
+  const image = await loadImage(imageBuffer);
   const aspectRatio = image.width / image.height;
   let drawWidth = canvas.width;
   let drawHeight = canvas.width / aspectRatio;
@@ -95,7 +148,7 @@ async function createThumbnailFromInstructions(config: any, inputPath: string, o
     if (overlay.type === 'text') {
       // Set font
       ctx.font = `${overlay.style.size}px ${overlay.style.font}`;
-      ctx.textAlign = overlay.style.alignment as CanvasTextAlign;
+      ctx.textAlign = overlay.style.alignment as CanvasTextAlign || 'center';
       ctx.textBaseline = 'middle';
 
       // Add shadow
@@ -109,7 +162,7 @@ async function createThumbnailFromInstructions(config: any, inputPath: string, o
       // Draw text outline
       if (overlay.style.outline) {
         ctx.strokeStyle = overlay.style.outline;
-        ctx.lineWidth = overlay.style.outlineWidth || 2;
+        ctx.lineWidth = 2;
         ctx.strokeText(overlay.content, overlay.position.x, overlay.position.y);
       }
 
@@ -142,8 +195,8 @@ async function createThumbnailFromInstructions(config: any, inputPath: string, o
   }
 
   // Apply image filters using Sharp
-  let imageBuffer = canvas.toBuffer('image/jpeg', { quality: 0.95 });
-  let processor = sharp(imageBuffer);
+  const processedBuffer = canvas.toBuffer('image/jpeg', { quality: 0.95 });
+  let processor = sharp(processedBuffer);
 
   // Apply filters if any
   if (config.image.filters?.length) {
@@ -168,7 +221,7 @@ async function createThumbnailFromInstructions(config: any, inputPath: string, o
     .toFile(outputPath);
 }
 
-async function testGeminiThumbnail() {
+async function testGeminiThumbnail(): Promise<void> {
   try {
     console.log('Starting Gemini-powered thumbnail creation...');
 
@@ -212,7 +265,7 @@ async function testGeminiThumbnail() {
 
     // Create the thumbnail
     console.log('\nCreating thumbnail...');
-    await createThumbnailFromInstructions(thumbnailConfig, inputPath, outputPath);
+    await createThumbnailFromInstructions(thumbnailConfig, fs.readFileSync(inputPath), outputPath);
 
     console.log('✅ Thumbnail created successfully!');
     console.log('Output saved to:', outputPath);

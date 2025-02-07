@@ -2,8 +2,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import { ImageProcessingInstruction } from '@/types/image-processing';
-
-// Import Jimp using require
+// Import Jimp using require for better compatibility
 const Jimp = require('jimp');
 
 // Sample JSON output from Gemini (for testing)
@@ -41,7 +40,7 @@ const sampleInstructions: ImageProcessingInstruction = {
   }
 };
 
-async function testImageProcessing() {
+async function testImageProcessing(): Promise<void> {
   try {
     console.log('Starting image processing test...');
 
