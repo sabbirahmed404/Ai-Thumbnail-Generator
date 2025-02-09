@@ -3,8 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { ImageProcessingInstruction } from '@/types/image-processing';
 
-// Import Jimp using require for better compatibility with Next.js
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// Import Jimp using require
 const Jimp = require('jimp');
 
 // Sample JSON output from Gemini (for testing)
@@ -42,7 +41,7 @@ const sampleInstructions: ImageProcessingInstruction = {
   }
 };
 
-async function testImageProcessing(): Promise<void> {
+async function testImageProcessing() {
   try {
     console.log('Starting image processing test...');
 

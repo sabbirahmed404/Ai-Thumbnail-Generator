@@ -1,22 +1,26 @@
 import sharp from 'sharp';
-import { ImageProcessingInstruction, ProcessedImage } from '@/types/image-processing';
-import { uploadBuffer } from '../cloudinary';
-
-// Import Jimp using require since it doesn't support ES modules well
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Jimp = require('jimp');
+import { ImageProcessingInstruction, ProcessedImage } from '@/types/image-processing';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 
 export class ImageProcessor {
+  private readonly outputDir: string;
+
+  constructor(outputDir: string = 'public/processed') {
+    this.outputDir = outputDir;
+  }
+
   async process(
     imageBuffer: Buffer,
     instructions: ImageProcessingInstruction
   ): Promise<ProcessedImage> {
     try {
       // Start with Sharp for basic processing
-      const processor = sharp(imageBuffer);
+      let processor = sharp(imageBuffer);
 
       // Apply base settings
-      processor.resize(
+      processor = processor.resize(
         instructions.base.size.width,
         instructions.base.size.height,
         {
@@ -30,20 +34,20 @@ export class ImageProcessor {
         for (const filter of instructions.enhancements.filters) {
           switch (filter.type) {
             case 'contrast':
-              processor.modulate({ brightness: filter.value });
+              processor = processor.modulate({ brightness: filter.value }); // Sharp uses brightness for contrast
               break;
             case 'brightness':
-              processor.modulate({ brightness: filter.value });
+              processor = processor.modulate({ brightness: filter.value });
               break;
             case 'saturation':
-              processor.modulate({ saturation: filter.value });
+              processor = processor.modulate({ saturation: filter.value });
               break;
           }
         }
       }
 
       // Process with Sharp first
-      const processedBuffer = await processor.toBuffer();
+      let processedBuffer = await processor.toBuffer();
 
       // Use Jimp for text overlays if needed
       if (instructions.enhancements.overlays?.length) {
@@ -63,43 +67,33 @@ export class ImageProcessor {
               font,
               overlay.position.x,
               overlay.position.y,
-              overlay.content
+              {
+                text: overlay.content,
+                alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
+                alignmentY: Jimp.VERTICAL_ALIGN_TOP
+              }
             );
           }
         }
 
         // Convert back to buffer
-        const finalBuffer = await new Promise<Buffer>((resolve, reject) => {
-          jimpImage.getBuffer(Jimp.MIME_PNG, (err: Error | null, buffer: Buffer) => {
-            if (err) reject(err);
-            else resolve(buffer);
-          });
-        });
-        
-        // Upload to Cloudinary with optimizations
-        const url = await uploadBuffer(finalBuffer, 'thumbnails');
-
-        // Get metadata for response
-        const metadata = await sharp(finalBuffer).metadata();
-
-        return {
-          url,
-          metadata: {
-            width: metadata.width || 0,
-            height: metadata.height || 0,
-            format: metadata.format || '',
-            size: metadata.size || 0
-          },
-          instructions
-        };
+        processedBuffer = await jimpImage.getBufferAsync(Jimp.MIME_PNG);
       }
 
-      // If no text overlays, upload the Sharp-processed buffer directly
-      const url = await uploadBuffer(processedBuffer, 'thumbnails');
+      // Generate unique filename
+      const filename = `${uuidv4()}.${instructions.base.format}`;
+      const outputPath = path.join(this.outputDir, filename);
+      
+      // Save the processed image
+      await sharp(processedBuffer)
+        .toFormat(instructions.base.format)
+        .toFile(outputPath);
+
+      // Get final image metadata
       const metadata = await sharp(processedBuffer).metadata();
 
       return {
-        url,
+        url: `/processed/${filename}`,
         metadata: {
           width: metadata.width || 0,
           height: metadata.height || 0,
@@ -109,8 +103,7 @@ export class ImageProcessor {
         instructions
       };
     } catch (error) {
-      console.error('Image processing failed:', error);
-      throw new Error(`Image processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Image processing failed: ${error}`);
     }
   }
 } 

@@ -12,17 +12,26 @@ export interface ImageProcessingInstruction {
       value: number;
     }>;
     overlays?: Array<{
-      type: 'text';
+      type: 'text' | 'emoji';
       content: string;
       position: {
         x: number;
         y: number;
       };
       style: {
-        font: string;
+        font?: string;
         size: number;
-        color: string;
+        color?: string;
         outline?: string;
+        outlineWidth?: number;
+        weight?: string;
+        alignment?: string;
+        shadow?: {
+          color: string;
+          blur: number;
+          offsetX: number;
+          offsetY: number;
+        };
       };
     }>;
     graphics?: Array<{

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UploadDropzone } from "@/components/UploadDropzone";
 import { ProcessingProgress } from "@/components/ProcessingProgress";
+import { FilterSettings } from "@/components/FilterSettings";
 import {
   Carousel,
   CarouselContent,
@@ -14,6 +14,13 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+
+interface FilterSettings {
+  contrast: boolean;
+  brightness: boolean;
+  saturation: boolean;
+  addEmoji: boolean;
+}
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -24,6 +31,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
+  const [filterSettings, setFilterSettings] = useState<FilterSettings>({
+    contrast: false,
+    brightness: false,
+    saturation: false,
+    addEmoji: false
+  });
 
   const steps = [
     "Analyzing image...",
@@ -61,6 +74,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append('image', file);
       formData.append('instruction', instruction);
+      formData.append('filterSettings', JSON.stringify(filterSettings));
 
       // Step 2: Generating instructions
       updateProgress(1);
@@ -123,6 +137,10 @@ export default function Home() {
                     className="min-h-[100px]"
                   />
                 </div>
+                <FilterSettings 
+                  settings={filterSettings}
+                  onSettingsChange={setFilterSettings}
+                />
                 <Button 
                   type="submit" 
                   disabled={!file || !instruction || isLoading}
@@ -155,11 +173,9 @@ export default function Home() {
                           <CardTitle className="text-center text-sm">Original Image</CardTitle>
                         </CardHeader>
                         <CardContent className="flex aspect-video items-center justify-center p-6">
-                          <Image 
+                          <img 
                             src={originalPreview} 
                             alt="Original" 
-                            width={1280}
-                            height={720}
                             className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                           />
                         </CardContent>
@@ -173,11 +189,9 @@ export default function Home() {
                           <CardTitle className="text-center text-sm">Generated Thumbnail</CardTitle>
                         </CardHeader>
                         <CardContent className="flex aspect-video items-center justify-center p-6">
-                          <Image 
-                            src={thumbnailUrl || ''} 
+                          <img 
+                            src={thumbnailUrl} 
                             alt="Thumbnail" 
-                            width={1280}
-                            height={720}
                             className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                           />
                         </CardContent>

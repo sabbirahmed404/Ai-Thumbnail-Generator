@@ -13,59 +13,72 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const PROMPT_TEMPLATE = `
+const createPromptTemplate = (props: { addEmoji?: boolean } = {}) => `
 You are a professional thumbnail design assistant. Analyze the user's request and generate processing instructions in this exact JSON format:
 
 {
   "base": {
     "size": {
-      "width": number,
-      "height": number
+      "width": 1280,
+      "height": 720
     },
-    "format": "jpg" or "png"
+    "format": "jpg"
   },
   "enhancements": {
-    "filters": [
-      {
-        "type": "contrast" | "brightness" | "saturation",
-        "value": number between 0.1 and 1.1
-      }
-    ],
+    "filters": [],
     "overlays": [
       {
         "type": "text",
-        "content": "string",
+        "content": "string (generate an engaging title based on user's request)",
         "position": { 
-          "x": number (must be between 100 and width-100 for padding), 
-          "y": number (must be between 100 and height-100 for padding)
+          "x": 640, 
+          "y": 360
         },
         "style": {
-          "font": "string",
-          "size": number between 24 and 72 or user request,
-          "color": "hex_code",
-          "outline": "hex_code (optional)"
+          "font": "Arial Bold",
+          "size": 48,
+          "color": "#FFFFFF",
+          "outline": "#000000",
+          "outlineWidth": 2,
+          "weight": "bold"
         }
-      }
+      }${props.addEmoji ? `,
+      {
+        "type": "emoji",
+        "content": "string (select ONE mood emoji from: 😑😍😁😃🤨🤔😲😊🔥💩❤️ that best matches the context)",
+        "position": {
+          "x": "number (choose a value between 100-1180, but NOT between 440-840 to avoid text overlap)",
+          "y": "number (choose a value between 100-620, but NOT between 260-460 to avoid text overlap)"
+        },
+        "style": {
+          "size": 180
+        }
+      }` : ''}
     ]
   }
 }
 
 Rules:
-1. All measurements should be in pixels
-2. Maximum 3 text overlays
-3. Font sizes between 24 and 72 but User can request any font size
-4. Strict filter limits:
+1. Always generate at least one text overlay with engaging content based on user's request
+2. Position text in the center (x: 640, y: 360)
+3. Do not add any filters unless explicitly requested
+4. If filters are requested, use these strict limits:
    - Saturation: max 1.1 (10% increase)
    - Brightness: between 0.9 and 1.1 (±10%)
    - Contrast: between 0.9 and 1.1 (±10%)
-5. Text positioning must include padding:
-   - Keep x positions between 100 and width-100 pixels
-   - Keep y positions between 100 and height-100 pixels
-6. Only output valid JSON, no additional text
-7. User can specify the font family, font color, font outline color, font content
+5. Keep text centered and readable
+6. If emoji is requested:
+   - Choose ONE mood emoji from: 😑😍😁😃🤨🤔😲😊🔥💩❤️
+   - Select the emoji that best matches the context and mood
+   - Position it in a random location that doesn't overlap with the text:
+     * x: 100-440 or 840-1180 (avoid center 440-840)
+     * y: 100-260 or 460-620 (avoid center 260-460)
+   - Make it large and visible (size: 180)
+7. Only output valid JSON, no additional text
 
 User Request: {USER_INPUT}
 Image Metadata: {WIDTH}x{HEIGHT} {FORMAT}
+${props.addEmoji ? 'Include Emoji: Yes' : ''}
 `;
 
 async function delay(ms: number) {
@@ -105,27 +118,40 @@ async function retryWithBackoff<T>(
 export async function generateImageInstructions(
   imageBuffer: Buffer,
   userInstruction: string,
-  metadata: { width: number; height: number; format: string }
+  metadata: { width: number; height: number; format: string },
+  props: { addEmoji?: boolean } = {}
 ): Promise<ImageProcessingInstruction> {
   return retryWithBackoff(async () => {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    const prompt = PROMPT_TEMPLATE
+    const prompt = createPromptTemplate(props)
       .replace("{USER_INPUT}", userInstruction)
       .replace("{WIDTH}", metadata.width.toString())
       .replace("{HEIGHT}", metadata.height.toString())
       .replace("{FORMAT}", metadata.format);
 
     try {
-      // For gemini-pro, we'll send the image metadata as text since it doesn't support direct image input
+      console.log('Sending prompt to Gemini:', prompt);
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const jsonResponse = JSON.parse(response.text());
+      const text = response.text();
+      console.log('Gemini response:', text);
       
-      // Validate the response matches our type
-      return jsonResponse as ImageProcessingInstruction;
-    } catch (error) {
-      throw new Error(`Gemini API Error: ${error}`);
+      try {
+        const jsonResponse = JSON.parse(text);
+        // Validate the response structure
+        if (!jsonResponse.base || !jsonResponse.enhancements) {
+          throw new Error('Invalid response structure');
+        }
+        return jsonResponse as ImageProcessingInstruction;
+      } catch (error: any) {
+        console.error('Failed to parse Gemini response:', error);
+        console.error('Raw response:', text);
+        throw new Error(`Failed to parse Gemini response: ${error?.message || 'Invalid JSON'}`);
+      }
+    } catch (error: any) {
+      console.error('Gemini API Error:', error);
+      throw new Error(`Gemini API Error: ${error?.message || 'Unknown error'}`);
     }
   });
 } 

@@ -16,6 +16,14 @@ interface ProcessingProgressProps {
   progress: number;
 }
 
+const steps = [
+  "Analyzing image...",
+  "Generating instructions...",
+  "Applying filters...",
+  "Adding text overlays...",
+  "Creating thumbnail...",
+];
+
 export function ProcessingProgress({ isOpen, currentStep, progress }: ProcessingProgressProps) {
   return (
     <Drawer open={isOpen} onOpenChange={() => {}}>
