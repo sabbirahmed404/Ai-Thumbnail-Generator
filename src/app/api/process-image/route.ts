@@ -11,7 +11,7 @@ type ImageFilter = {
   value: number;
 };
 
-// Add type definition for emoji overlays
+
 type Overlay = {
   type: 'text' | 'emoji';
   content: string;
